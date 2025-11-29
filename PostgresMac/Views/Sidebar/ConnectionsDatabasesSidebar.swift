@@ -135,10 +135,117 @@ struct ConnectionsDatabasesSidebar: View {
 
 private struct DatabaseRowView: View {
     let database: DatabaseInfo
+    @Environment(AppState.self) private var appState
+    @State private var isHovered = false
+    @State private var isButtonHovered = false
+    @State private var showDeleteConfirmation = false
+    @State private var deleteError: String?
 
     var body: some View {
         NavigationLink(value: database.id) {
-            Label(database.name, systemImage: "externaldrive")
+            HStack {
+                Label(database.name, systemImage: "externaldrive")
+                Spacer()
+                if isHovered {
+                    Menu {
+                        Button(role: .destructive) {
+                            showDeleteConfirmation = true
+                        } label: {
+                            Text("Delete...")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .foregroundColor(isButtonHovered ? .primary : .secondary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 6)
+                            .background(isButtonHovered ? Color.secondary.opacity(0.2) : Color.clear)
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                    }
+                    .buttonStyle(.plain)
+                    .onHover { hovering in
+                        isButtonHovered = hovering
+                    }
+                }
+            }
+        }
+        .onHover { hovering in
+            isHovered = hovering
+        }
+        .confirmationDialog(
+            "Delete Database?",
+            isPresented: $showDeleteConfirmation,
+            presenting: database
+        ) { database in
+            Button(role: .destructive) {
+                Task {
+                    await deleteDatabase(database)
+                }
+            } label: {
+                Text("Delete")
+            }
+            Button("Cancel", role: .cancel) {
+                showDeleteConfirmation = false
+            }
+        } message: { database in
+            Text("Are you sure you want to delete '\(database.name)'? This action cannot be undone.")
+        }
+        .alert("Error Deleting Database", isPresented: Binding(
+            get: { deleteError != nil },
+            set: { if !$0 { deleteError = nil } }
+        )) {
+            Button("OK", role: .cancel) {
+                deleteError = nil
+            }
+        } message: {
+            if let error = deleteError {
+                Text(error)
+            }
+        }
+    }
+    
+    private func deleteDatabase(_ database: DatabaseInfo) async {
+        print("🗑️  [DatabaseRowView] Deleting database: \(database.name)")
+        
+        do {
+            // Get connection details
+            guard appState.currentConnection != nil else {
+                print("❌ [DatabaseRowView] No current connection")
+                return
+            }
+            
+            // Delete the database (DatabaseService uses stored connection details)
+            try await appState.databaseService.deleteDatabase(name: database.name)
+            
+            // Remove from databases list
+            appState.databases.removeAll { $0.id == database.id }
+            
+            // Clear selection if this was the selected database
+            if appState.selectedDatabase?.id == database.id {
+                appState.selectedDatabase = nil
+                appState.tables = []
+                appState.isLoadingTables = false
+            }
+            
+            // Refresh databases list
+            await refreshDatabases()
+            
+            print("✅ [DatabaseRowView] Database deleted successfully")
+        } catch {
+            print("❌ [DatabaseRowView] Error deleting database: \(error)")
+            // Display error message to user
+            if let connectionError = error as? ConnectionError {
+                deleteError = connectionError.errorDescription ?? "Failed to delete database."
+            } else {
+                deleteError = error.localizedDescription
+            }
+        }
+    }
+    
+    private func refreshDatabases() async {
+        do {
+            appState.databases = try await appState.databaseService.fetchDatabases()
+        } catch {
+            print("Failed to refresh databases: \(error)")
         }
     }
 }

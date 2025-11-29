@@ -15,6 +15,13 @@ class DatabaseService {
     private var eventLoopGroup: EventLoopGroup?
     private let logger = Logger(label: "com.postgresmac.database")
     
+    // Store connection details for operations that require reconnection
+    private var connectionHost: String?
+    private var connectionPort: Int?
+    private var connectionUsername: String?
+    private var connectionPassword: String?
+    private var connectionDatabase: String?
+    
     var isConnected: Bool {
         connection != nil
     }
@@ -59,6 +66,13 @@ class DatabaseService {
         self.eventLoopGroup = eventLoopGroup
         print("✅ [DatabaseService.connect] Event loop group created")
 
+        // Store connection details for later use (e.g., reconnecting to drop databases)
+        self.connectionHost = host
+        self.connectionPort = port
+        self.connectionUsername = username
+        self.connectionPassword = password
+        self.connectionDatabase = database
+        
         // Create connection configuration
         let configuration = PostgresConnection.Configuration(
             host: host,
@@ -128,6 +142,13 @@ class DatabaseService {
             try? await eventLoopGroup.shutdownGracefully()
             self.eventLoopGroup = nil
         }
+        
+        // Clear connection details
+        connectionHost = nil
+        connectionPort = nil
+        connectionUsername = nil
+        connectionPassword = nil
+        connectionDatabase = nil
     }
     
     /// Test connection without saving (static method - doesn't require instance)
@@ -579,5 +600,88 @@ class DatabaseService {
 
         print("✅ [DatabaseService.executeQuery] SUCCESS - Returned \(tableRows.count) rows")
         return tableRows
+    }
+    
+    /// Delete a database
+    func deleteDatabase(name: String) async throws {
+        print("🗑️  [DatabaseService.deleteDatabase] START for database: \(name)")
+        
+        guard connection != nil else {
+            print("❌ [DatabaseService.deleteDatabase] ERROR: Not connected")
+            throw ConnectionError.notConnected
+        }
+        
+        // We need connection details to reconnect to 'postgres' database
+        guard let host = connectionHost,
+              let port = connectionPort,
+              let username = connectionUsername,
+              let password = connectionPassword else {
+            print("❌ [DatabaseService.deleteDatabase] ERROR: Connection details not available")
+            throw ConnectionError.notConnected
+        }
+        
+        // Save original database name
+        let originalDatabase = connectionDatabase
+        
+        // Disconnect from current database (can't drop database while connected to it)
+        await disconnect()
+        
+        // Connect to 'postgres' database to drop the target database
+        let eventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: 1)
+        self.eventLoopGroup = eventLoopGroup
+        
+        let configuration = PostgresConnection.Configuration(
+            host: host,
+            port: port,
+            username: username,
+            password: password,
+            database: "postgres", // Connect to postgres database
+            tls: .disable
+        )
+        
+        do {
+            let postgresConnection = try await PostgresConnection.connect(
+                on: eventLoopGroup.next(),
+                configuration: configuration,
+                id: 1,
+                logger: logger
+            )
+            
+            self.connection = postgresConnection
+            
+            // Execute DROP DATABASE
+            // Escape database name properly
+            let escapedName = name.replacingOccurrences(of: "\"", with: "\"\"")
+            let dropQuerySQL = "DROP DATABASE \"\(escapedName)\";"
+            let dropQuery = PostgresQuery(unsafeSQL: dropQuerySQL)
+            
+            print("📝 [DatabaseService.deleteDatabase] Executing: \(dropQuerySQL)")
+            _ = try await postgresConnection.query(dropQuery, logger: logger)
+            
+            print("✅ [DatabaseService.deleteDatabase] SUCCESS - Database '\(name)' deleted")
+            
+            // Close connection to postgres
+            try? await postgresConnection.close()
+            self.connection = nil
+            try? await eventLoopGroup.shutdownGracefully()
+            self.eventLoopGroup = nil
+            
+            // Optionally reconnect to original database if it wasn't the one we deleted
+            if let originalDatabase = originalDatabase, originalDatabase != name {
+                print("🔄 [DatabaseService.deleteDatabase] Reconnecting to original database: \(originalDatabase)")
+                try await connect(
+                    host: host,
+                    port: port,
+                    username: username,
+                    password: password,
+                    database: originalDatabase
+                )
+            }
+            
+        } catch {
+            print("❌ [DatabaseService.deleteDatabase] ERROR: \(error)")
+            await disconnect()
+            throw error
+        }
     }
 }
