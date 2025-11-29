@@ -1,0 +1,24 @@
+//
+//  Badge.swift
+//  PostgresMac
+//
+//  Created by ghazi on 11/28/25.
+//
+
+import SwiftUI
+
+struct Badge: View {
+    let text: String
+    let color: Color
+    
+    var body: some View {
+        Text(text)
+            .font(.caption2)
+            .fontWeight(.semibold)
+            .foregroundColor(.white)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(color)
+            .cornerRadius(4)
+    }
+}
