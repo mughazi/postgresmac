@@ -65,14 +65,6 @@ struct ConnectionsDatabasesSidebar: View {
             }
         }
         .navigationTitle("Databases")
-        .toolbar {
-            ToolbarItem {
-                Button(action: refreshDatabases) {
-                    Label("Refresh", systemImage: "arrow.clockwise")
-                }
-                .disabled(!appState.isConnected)
-            }
-        }
         .onChange(of: appState.isConnected) { oldValue, newValue in
             if newValue {
                 refreshDatabases()

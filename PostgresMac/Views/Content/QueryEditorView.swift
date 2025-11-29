@@ -20,11 +20,17 @@ struct QueryEditorView: View {
             // Toolbar with execute button and stats
             HStack {
                 Button(action: executeQuery) {
-                    Label("Run Query", systemImage: "play.circle.fill")
-                        .foregroundColor(.green)
+                    HStack(spacing: 4) {
+                        Image(systemName: "play.circle.fill")
+                        Text("Run Query")
+                            .font(.system(size: 11, weight: .medium))
+                    }
                 }
                 .disabled(appState.isExecutingQuery || appState.queryText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                .buttonStyle(.plain)
+                .buttonStyle(.glass)
+                .tint(.accentColor)
+                .clipShape(Capsule())
+                .keyboardShortcut(.return, modifiers: [.command])
 
                 Spacer()
 
