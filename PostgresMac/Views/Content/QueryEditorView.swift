@@ -28,7 +28,7 @@ struct QueryEditorView: View {
                 }
                 .disabled(appState.isExecutingQuery || appState.queryText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 .buttonStyle(.glass)
-                .tint(.accentColor)
+                .tint(.primary)
                 .clipShape(Capsule())
                 .keyboardShortcut(.return, modifiers: [.command])
 
