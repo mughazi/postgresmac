@@ -111,13 +111,27 @@ struct QueryResultsView: View {
                         .padding()
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if appState.queryResults.isEmpty {
-                ContentUnavailableView(
-                    "Empty Table",
-                    systemImage: "tablecells",
-                    description: Text("Query returned no rows")
-                )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if appState.queryResults.isEmpty && !appState.isExecutingQuery {
+                // Show empty table with headers if column names are available
+                if let columnNames = getColumnNames(), !columnNames.isEmpty {
+                    // Empty table with overlay empty state message
+                    emptyTableWithHeaders(columnNames: columnNames)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .overlay(alignment: .center) {
+                            ContentUnavailableView(
+                                "Empty Table",
+                                systemImage: "tablecells",
+                                description: Text("Query returned no rows")
+                            )
+                        }
+                } else {
+                    ContentUnavailableView(
+                        "Empty Table",
+                        systemImage: "tablecells",
+                        description: Text("Query returned no rows")
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             } else {
                 // Display results using SwiftUI Table
                 resultsTable
@@ -141,17 +155,47 @@ struct QueryResultsView: View {
         }
     }
 
+    @ViewBuilder
+    private func emptyTableWithHeaders(columnNames: [String]) -> some View {
+        // Create a Table with just headers, no rows
+        Table([] as [TableRow], selection: .constant(Set<TableRow.ID>())) {
+            TableColumnForEach(columnNames, id: \.self) { columnName in
+                TableColumn(columnName) { row in
+                    Text(formatValue(row.values[columnName] ?? nil))
+                        .font(.system(.body, design: .monospaced))
+                }
+                .width(min: Constants.ColumnWidth.tableColumnMin)
+            }
+        }
+    }
+
     private var sortedResults: [TableRow] {
         appState.queryResults.sorted(using: sortOrder)
     }
 
     private func getColumnNames() -> [String]? {
-        // Extract column names from the first row, maintaining order
+        // First try to get column names from stored queryColumnNames (works even for empty results)
+        if let columnNames = appState.queryColumnNames, !columnNames.isEmpty {
+            print("📋 [QueryResultsView] Using stored column names: \(columnNames.joined(separator: ", "))")
+            return columnNames
+        }
+        
+        // Fallback: Use columns from selected table if available
+        if !appState.columns.isEmpty {
+            let columnNames = appState.columns.map { $0.name }
+            print("📋 [QueryResultsView] Using columns from selected table: \(columnNames.joined(separator: ", "))")
+            return columnNames
+        }
+        
+        // Fallback: Extract column names from the first row
         guard let firstRow = appState.queryResults.first else {
+            print("⚠️  [QueryResultsView] No column names available")
             return nil
         }
         // Sort column names alphabetically for consistent ordering
-        return Array(firstRow.values.keys.sorted())
+        let columnNames = Array(firstRow.values.keys.sorted())
+        print("📋 [QueryResultsView] Using column names from first row: \(columnNames.joined(separator: ", "))")
+        return columnNames
     }
 
     private func formatValue(_ value: String?) -> String {

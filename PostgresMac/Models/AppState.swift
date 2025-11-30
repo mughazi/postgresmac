@@ -37,6 +37,7 @@ class AppState {
     // Query editor state
     var queryText: String = ""
     var queryResults: [TableRow] = []
+    var queryColumnNames: [String]? = nil
     var isExecutingQuery: Bool = false
     var queryError: String? = nil
     var showQueryResults: Bool = false

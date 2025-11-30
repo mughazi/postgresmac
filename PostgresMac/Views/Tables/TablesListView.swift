@@ -91,6 +91,27 @@ struct TablesListView: View {
     private func populateAndExecuteQuery(for table: TableInfo) async {
         print("🔍 [TablesListView] Auto-generating query for table: \(table.schema).\(table.name)")
 
+        // Set loading state FIRST to prevent empty state flicker
+        appState.isExecutingQuery = true
+        appState.queryError = nil
+        appState.queryExecutionTime = nil
+        appState.showQueryResults = false // Hide results view during loading
+        
+        // Clear existing state to prevent rendering issues
+        appState.columns = []
+        appState.queryResults = []
+        appState.queryColumnNames = nil
+
+        // Fetch column metadata for the table first
+        do {
+            print("📋 [TablesListView] Fetching columns for table...")
+            appState.columns = try await appState.databaseService.fetchColumns(schema: table.schema, table: table.name)
+            print("✅ [TablesListView] Fetched \(appState.columns.count) columns")
+        } catch {
+            print("⚠️  [TablesListView] Failed to fetch columns: \(error)")
+            appState.columns = []
+        }
+
         // Generate SELECT query with pagination
         let query = generateTableQuery(for: table)
         print("📝 [TablesListView] Generated query: \(query)")
@@ -98,29 +119,31 @@ struct TablesListView: View {
         // Update query text in editor
         appState.queryText = query
 
-        // Execute query
+        // Ensure loading state is still set (in case it was cleared during column fetch)
         appState.isExecutingQuery = true
-        appState.queryError = nil
-        appState.queryExecutionTime = nil
-        
+        appState.queryColumnNames = nil // Clear previous column names
+
         let startTime = Date()
 
         do {
             print("📊 [TablesListView] Executing query...")
-            appState.queryResults = try await appState.databaseService.executeQuery(query)
+            let (results, columnNames) = try await appState.databaseService.executeQuery(query)
+            appState.queryResults = results
+            appState.queryColumnNames = columnNames.isEmpty ? nil : columnNames
             appState.showQueryResults = true
-            
+
             let endTime = Date()
             appState.queryExecutionTime = endTime.timeIntervalSince(startTime)
-            
+
             print("✅ [TablesListView] Query executed successfully - \(appState.queryResults.count) rows")
         } catch {
             appState.queryError = error.localizedDescription
+            appState.queryColumnNames = nil
             appState.showQueryResults = true
-            
+
             let endTime = Date()
             appState.queryExecutionTime = endTime.timeIntervalSince(startTime)
-            
+
             print("❌ [TablesListView] Query execution failed: \(error)")
         }
 

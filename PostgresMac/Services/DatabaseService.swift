@@ -535,8 +535,8 @@ class DatabaseService {
     }
     
 
-    /// Execute arbitrary SQL query and return results
-    func executeQuery(_ sql: String) async throws -> [TableRow] {
+    /// Execute arbitrary SQL query and return results along with column names
+    func executeQuery(_ sql: String) async throws -> ([TableRow], [String]) {
         print("🔍 [DatabaseService.executeQuery] START")
         print("📝 [DatabaseService.executeQuery] Query: \(sql)")
 
@@ -558,7 +558,7 @@ class DatabaseService {
             throw error
         }
 
-        // First, collect column names from the first row
+        // First, collect column names from the first row (or try to extract from empty result)
         var columnNames: [String] = []
         var isFirstRow = true
 
@@ -620,9 +620,66 @@ class DatabaseService {
 
             tableRows.append(TableRow(values: values))
         }
+        
+        // If we have no rows but also no column names, try to extract from result metadata
+        if columnNames.isEmpty && tableRows.isEmpty {
+            print("🔍 [DatabaseService.executeQuery] Attempting to extract column metadata from empty result")
+            // Try multiple approaches to get column metadata
+            do {
+                let trimmedSQL = sql.trimmingCharacters(in: .whitespacesAndNewlines)
+                let upperSQL = trimmedSQL.uppercased()
+                
+                // Approach 1: Try wrapping SELECT queries in a CTE with LIMIT 0
+                if upperSQL.hasPrefix("SELECT") {
+                    // Use a CTE approach which is more reliable than subquery
+                    let metadataQuerySQL = "WITH _metadata_cte AS (\(trimmedSQL)) SELECT * FROM _metadata_cte LIMIT 0"
+                    print("📝 [DatabaseService.executeQuery] Trying CTE approach: \(metadataQuerySQL)")
+                    
+                    let metadataQuery = PostgresQuery(unsafeSQL: metadataQuerySQL)
+                    let metadataRows = try await connection.query(metadataQuery, logger: logger)
+                    
+                    // Try to iterate and get metadata from the first row (even if empty)
+                    var iterator = metadataRows.makeAsyncIterator()
+                    if let row = try await iterator.next() {
+                        let randomAccess = row.makeRandomAccess()
+                        let mirror = Mirror(reflecting: randomAccess)
+                        if let lookupTable = mirror.children.first(where: { $0.label == "lookupTable" })?.value as? [String: Int] {
+                            columnNames = lookupTable.sorted(by: { $0.value < $1.value }).map { $0.key }
+                            print("✅ [DatabaseService.executeQuery] Column names from CTE metadata: \(columnNames.joined(separator: ", "))")
+                        }
+                    }
+                }
+                
+                // Approach 2: If CTE failed, try simple LIMIT 0
+                if columnNames.isEmpty {
+                    let metadataQuerySQL = trimmedSQL + " LIMIT 0"
+                    print("📝 [DatabaseService.executeQuery] Trying LIMIT 0 approach: \(metadataQuerySQL)")
+                    
+                    let metadataQuery = PostgresQuery(unsafeSQL: metadataQuerySQL)
+                    let metadataRows = try await connection.query(metadataQuery, logger: logger)
+                    
+                    var iterator = metadataRows.makeAsyncIterator()
+                    if let row = try await iterator.next() {
+                        let randomAccess = row.makeRandomAccess()
+                        let mirror = Mirror(reflecting: randomAccess)
+                        if let lookupTable = mirror.children.first(where: { $0.label == "lookupTable" })?.value as? [String: Int] {
+                            columnNames = lookupTable.sorted(by: { $0.value < $1.value }).map { $0.key }
+                            print("✅ [DatabaseService.executeQuery] Column names from LIMIT 0 metadata: \(columnNames.joined(separator: ", "))")
+                        }
+                    }
+                }
+                
+                if columnNames.isEmpty {
+                    print("⚠️  [DatabaseService.executeQuery] Could not extract column metadata from empty result")
+                }
+            } catch {
+                // If metadata extraction fails, columnNames will remain empty
+                print("⚠️  [DatabaseService.executeQuery] Failed to extract column metadata: \(error.localizedDescription)")
+            }
+        }
 
-        print("✅ [DatabaseService.executeQuery] SUCCESS - Returned \(tableRows.count) rows")
-        return tableRows
+        print("✅ [DatabaseService.executeQuery] SUCCESS - Returned \(tableRows.count) rows, \(columnNames.count) columns")
+        return (tableRows, columnNames)
     }
     
     /// Delete a database

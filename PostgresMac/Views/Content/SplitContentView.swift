@@ -50,14 +50,9 @@ struct SplitContentView: View {
     @ViewBuilder
     private var topPaneView: some View {
         if appState.isExecutingQuery {
-            VStack(spacing: 16) {
-                ProgressView()
-                    .scaleEffect(0.8)
-                Text("Executing query...")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            ProgressView()
+                .scaleEffect(0.8)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if appState.showQueryResults {
             QueryResultsView()
         } else {
