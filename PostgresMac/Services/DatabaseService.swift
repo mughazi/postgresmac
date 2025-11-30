@@ -477,24 +477,33 @@ class DatabaseService {
             throw error
         }
         
+        // First, collect column names from the first row
+        var columnNames: [String] = []
+        var isFirstRow = true
+
         var tableRows: [TableRow] = []
         for try await row in rows {
             var values: [String: String?] = [:]
-            
-            // Get all column names and values
             let randomAccess = row.makeRandomAccess()
-            // Get column metadata - need to query column names separately or use a different approach
-            // For SELECT *, column order matches table column order
-            // We'll need to fetch column names separately or use a different query approach
-            // For now, use a workaround: fetch column names from information_schema first
-            // But for simplicity in MVP, let's use column indices and fetch names separately if needed
-            
-            // Try to decode all columns - PostgresNIO should provide column metadata
-            // Use a simpler approach: try to decode as string for all columns
-            for index in 0..<randomAccess.count {
-                let columnName = "col_\(index)" // Temporary - will need actual column names
+
+            // On first row, extract column names using reflection
+            if isFirstRow {
+                // Use Mirror to inspect the row structure and extract column names
+                let mirror = Mirror(reflecting: randomAccess)
+                if let lookupTable = mirror.children.first(where: { $0.label == "lookupTable" })?.value as? [String: Int] {
+                    columnNames = lookupTable.sorted(by: { $0.value < $1.value }).map { $0.key }
+                } else {
+                    // Fallback: use index-based names if reflection fails
+                    columnNames = (0..<randomAccess.count).map { "col_\($0)" }
+                }
+                isFirstRow = false
+            }
+
+            // Extract values for each column
+            for (index, columnName) in columnNames.enumerated() {
+                guard index < randomAccess.count else { break }
                 let value: String?
-                
+
                 // Try to decode as string (PostgresNIO will handle type conversion)
                 do {
                     value = try randomAccess[index].decode(String.self)
@@ -510,10 +519,10 @@ class DatabaseService {
                         value = nil // NULL or unsupported type
                     }
                 }
-                
+
                 values[columnName] = value
             }
-            
+
             tableRows.append(TableRow(values: values))
         }
         
@@ -566,14 +575,33 @@ class DatabaseService {
             throw error
         }
 
+        // First, collect column names from the first row
+        var columnNames: [String] = []
+        var isFirstRow = true
+
         var tableRows: [TableRow] = []
         for try await row in rows {
             var values: [String: String?] = [:]
             let randomAccess = row.makeRandomAccess()
 
-            // Extract all columns
-            for index in 0..<randomAccess.count {
-                let columnName = "col_\(index)" // Using index-based names for now
+            // On first row, extract column names using reflection
+            if isFirstRow {
+                // Use Mirror to inspect the row structure and extract column names
+                let mirror = Mirror(reflecting: randomAccess)
+                if let lookupTable = mirror.children.first(where: { $0.label == "lookupTable" })?.value as? [String: Int] {
+                    columnNames = lookupTable.sorted(by: { $0.value < $1.value }).map { $0.key }
+                    print("📋 [DatabaseService.executeQuery] Column names: \(columnNames.joined(separator: ", "))")
+                } else {
+                    // Fallback: use index-based names if reflection fails
+                    columnNames = (0..<randomAccess.count).map { "col_\($0)" }
+                    print("⚠️  [DatabaseService.executeQuery] Using fallback column names")
+                }
+                isFirstRow = false
+            }
+
+            // Extract values for each column
+            for (index, columnName) in columnNames.enumerated() {
+                guard index < randomAccess.count else { break }
                 let value: String?
 
                 // Try to decode as string first (PostgresNIO will handle type conversion)
