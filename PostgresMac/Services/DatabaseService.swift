@@ -241,24 +241,23 @@ class DatabaseService {
         guard let connection = connection else {
             throw ConnectionError.notConnected
         }
-        
+
         let query: PostgresQuery = """
-            SELECT datname, pg_database_size(datname) as size
+            SELECT datname
             FROM pg_database
             WHERE datistemplate = false
             ORDER BY datname;
             """
-        
+
         let rows = try await connection.query(query, logger: logger)
-        
+
         var databases: [DatabaseInfo] = []
         for try await row in rows {
             let randomAccess = row.makeRandomAccess()
             let name = try randomAccess[0].decode(String.self)
-            let size = try randomAccess[1].decode(Int64?.self)
-            databases.append(DatabaseInfo(name: name, sizeInBytes: size))
+            databases.append(DatabaseInfo(name: name))
         }
-        
+
         return databases
     }
     
@@ -273,11 +272,7 @@ class DatabaseService {
         print("✅ [DatabaseService.fetchTables] Connection exists")
 
         let query: PostgresQuery = """
-            SELECT
-                table_name,
-                table_schema,
-                (SELECT reltuples::bigint FROM pg_class WHERE relname = table_name) as row_count,
-                pg_total_relation_size(quote_ident(table_schema)||'.'||quote_ident(table_name)) as size
+            SELECT table_name, table_schema
             FROM information_schema.tables
             WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
             AND table_type = 'BASE TABLE'
@@ -293,9 +288,7 @@ class DatabaseService {
             let randomAccess = row.makeRandomAccess()
             let name = try randomAccess[0].decode(String.self)
             let schema = try randomAccess[1].decode(String.self)
-            let rowCount = try randomAccess[2].decode(Int64?.self)
-            let size = try randomAccess[3].decode(Int64?.self)
-            tables.append(TableInfo(name: name, schema: schema, rowCount: rowCount, sizeInBytes: size))
+            tables.append(TableInfo(name: name, schema: schema))
             print("   ➕ Found table: \(schema).\(name)")
         }
 
@@ -541,28 +534,6 @@ class DatabaseService {
         return tableRows
     }
     
-    /// Get total row count for a table
-    func getRowCount(schema: String, table: String) async throws -> Int64 {
-        guard let connection = connection else {
-            throw ConnectionError.notConnected
-        }
-
-        // Escape schema and table names
-        let escapedSchema = schema.replacingOccurrences(of: "\"", with: "\"\"")
-        let escapedTable = table.replacingOccurrences(of: "\"", with: "\"\"")
-        let query: PostgresQuery = """
-            SELECT COUNT(*) as count FROM "\(escapedSchema)"."\(escapedTable)";
-            """
-
-        let rows = try await connection.query(query, logger: logger)
-
-        for try await row in rows {
-            let randomAccess = row.makeRandomAccess()
-            return try randomAccess[0].decode(Int64.self)
-        }
-
-        return 0
-    }
 
     /// Execute arbitrary SQL query and return results
     func executeQuery(_ sql: String) async throws -> [TableRow] {

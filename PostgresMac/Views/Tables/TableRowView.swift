@@ -12,23 +12,12 @@ struct TableRowView: View {
 
     var body: some View {
         NavigationLink(value: table.id) {
-            VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                Image(systemName: "tablecells")
+                    .foregroundColor(.secondary)
+
                 Text(table.name)
                     .font(.headline)
-
-                HStack {
-                    if let rowCount = table.rowCount {
-                        Text("\(Formatters.formatNumber(rowCount)) rows")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-
-                    if let size = table.sizeInBytes {
-                        Text("• \(Formatters.formatBytes(size))")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
             }
             .padding(.vertical, 4)
             .padding(.horizontal, 6)
