@@ -73,6 +73,37 @@ struct QueryResultsView: View {
     }
 
     private func formatValue(_ value: String?) -> String {
-        value ?? "NULL"
+        guard let value = value else { return "NULL" }
+
+        // Try to format as timestamp if it looks like a date/time
+        if isLikelyTimestamp(value) {
+            return Formatters.formatTimestamp(value)
+        }
+
+        return value
+    }
+
+    private func isLikelyTimestamp(_ value: String) -> Bool {
+        // Check if value matches common timestamp patterns
+        // ISO8601: "2024-11-30T12:34:56Z" or "2024-11-30T12:34:56.123Z"
+        // PostgreSQL: "2024-11-30 12:34:56" or "2024-11-30 12:34:56.123456"
+        // Date only: "2024-11-30"
+
+        let timestampPatterns = [
+            // ISO8601
+            "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}",
+            // PostgreSQL timestamp
+            "^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}",
+            // Date only
+            "^\\d{4}-\\d{2}-\\d{2}$"
+        ]
+
+        for pattern in timestampPatterns {
+            if value.range(of: pattern, options: .regularExpression) != nil {
+                return true
+            }
+        }
+
+        return false
     }
 }
