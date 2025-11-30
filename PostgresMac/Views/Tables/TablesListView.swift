@@ -14,14 +14,9 @@ struct TablesListView: View {
     var body: some View {
         Group {
             if appState.isLoadingTables {
-                VStack(spacing: 16) {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                    Text("Loading tables...")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                ProgressView()
+                    .scaleEffect(0.8)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if appState.tables.isEmpty {
                 ContentUnavailableView {
                     Label {
