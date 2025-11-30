@@ -9,6 +9,7 @@ import SwiftUI
 
 struct QueryResultsView: View {
     @Environment(AppState.self) private var appState
+    @State private var selection = Set<TableRow.ID>()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -36,50 +37,39 @@ struct QueryResultsView: View {
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                // Display results in table format
-                ScrollView([.horizontal, .vertical]) {
-                    LazyVStack(alignment: .leading, spacing: 0) {
-                        queryResultsHeader
-                        queryResultsRows
+                // Display results using SwiftUI Table
+                resultsTable
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var resultsTable: some View {
+        if let columnNames = getColumnNames() {
+            Table(of: PostgresMac.TableRow.self, selection: $selection) {
+                TableColumnForEach(columnNames, id: \.self) { columnName in
+                    TableColumn(columnName) { row in
+                        Text(formatValue(row.values[columnName] ?? nil))
+                            .font(.system(.body, design: .monospaced))
+                            .textSelection(.enabled)
                     }
+                    .width(min: Constants.ColumnWidth.tableColumnMin)
+                }
+            } rows: {
+                ForEach(appState.queryResults) { row in
+                    SwiftUI.TableRow(row)
                 }
             }
         }
     }
 
-    @ViewBuilder
-    private var queryResultsHeader: some View {
-        if let firstRow = appState.queryResults.first {
-            let columnNames = Array(firstRow.values.keys.sorted())
-            HStack(spacing: 0) {
-                ForEach(columnNames, id: \.self) { columnName in
-                    Text(columnName)
-                        .font(.headline)
-                        .frame(minWidth: Constants.ColumnWidth.tableColumnMin, alignment: .leading)
-                        .padding(8)
-                        .background(Color(NSColor.controlBackgroundColor))
-                        .border(Color(NSColor.separatorColor), width: 0.5)
-                }
-            }
+    private func getColumnNames() -> [String]? {
+        // Extract column names from the first row, maintaining order
+        guard let firstRow = appState.queryResults.first else {
+            return nil
         }
-    }
-
-    @ViewBuilder
-    private var queryResultsRows: some View {
-        ForEach(Array(appState.queryResults.enumerated()), id: \.element.id) { index, row in
-            let columnNames = Array(row.values.keys.sorted())
-            HStack(spacing: 0) {
-                ForEach(columnNames, id: \.self) { columnName in
-                    let value = row.values[columnName] ?? nil
-                    Text(formatValue(value))
-                        .font(.system(.body, design: .monospaced))
-                        .frame(minWidth: Constants.ColumnWidth.tableColumnMin, alignment: .leading)
-                        .padding(8)
-                        .background(index % 2 == 0 ? Color.clear : Color(NSColor.controlBackgroundColor).opacity(0.5))
-                        .border(Color(NSColor.separatorColor), width: 0.5)
-                }
-            }
-        }
+        // Sort column names alphabetically for consistent ordering
+        return Array(firstRow.values.keys.sorted())
     }
 
     private func formatValue(_ value: String?) -> String {
