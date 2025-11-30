@@ -67,6 +67,18 @@ struct TablesListView: View {
             }
         }
         .navigationTitle("Tables")
+        .toolbar {
+            ToolbarItem(placement: .automatic) {
+                Button(action: {
+                    Task {
+                        await refreshTables()
+                    }
+                }) {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .disabled(appState.isLoadingTables || appState.selectedDatabase == nil)
+            }
+        }
     }
 
     private func generateTableQuery(for table: TableInfo) -> String {
@@ -113,5 +125,50 @@ struct TablesListView: View {
         }
 
         appState.isExecutingQuery = false
+    }
+    
+    @MainActor
+    private func refreshTables() async {
+        print("🔄 [TablesListView] Refresh tables START")
+        
+        guard let database = appState.selectedDatabase else {
+            print("❌ [TablesListView] No database selected for refresh")
+            return
+        }
+        
+        defer {
+            print("🔄 [TablesListView] Refresh tables END - setting isLoadingTables=false")
+            appState.isLoadingTables = false
+        }
+        
+        appState.isLoadingTables = true
+        
+        // Check if we're connected
+        guard appState.databaseService.isConnected else {
+            print("❌ [TablesListView] Not connected, cannot refresh")
+            return
+        }
+        
+        // Refresh databases list
+        do {
+            print("📊 [TablesListView] Fetching databases...")
+            appState.databases = try await appState.databaseService.fetchDatabases()
+            print("✅ [TablesListView] Refreshed \(appState.databases.count) databases")
+        } catch {
+            print("❌ [TablesListView] Error refreshing databases: \(error)")
+            print("❌ [TablesListView] Error details: \(String(describing: error))")
+            // Continue with table refresh even if database refresh fails
+        }
+        
+        // Refresh tables list
+        do {
+            print("📊 [TablesListView] Fetching tables from database: \(database.name)")
+            appState.tables = try await appState.databaseService.fetchTables(database: database.name)
+            print("✅ [TablesListView] Refreshed \(appState.tables.count) tables")
+        } catch {
+            print("❌ [TablesListView] Error refreshing tables: \(error)")
+            print("❌ [TablesListView] Error details: \(String(describing: error))")
+            // Keep existing tables on error
+        }
     }
 }
