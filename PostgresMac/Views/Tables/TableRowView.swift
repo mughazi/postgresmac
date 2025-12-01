@@ -33,14 +33,6 @@ struct TableRowView: View {
                 Label("Copy Name", systemImage: "doc.on.doc")
             }
             
-            Button {
-                Task {
-                    await showSchema()
-                }
-            } label: {
-                Label("View Schema...", systemImage: "info.circle")
-            }
-            
             Button(role: .destructive) {
                 showDeleteConfirmation = true
             } label: {
@@ -109,21 +101,6 @@ struct TableRowView: View {
             } else {
                 deleteError = error.localizedDescription
             }
-        }
-    }
-    
-    private func showSchema() async {
-        print("📋 [TableRowView] Showing schema for: \(table.schema).\(table.name)")
-        
-        do {
-            // Fetch columns for the table
-            appState.columns = try await appState.databaseService.fetchColumns(schema: table.schema, table: table.name)
-            appState.schemaTable = table
-            appState.showTableSchema = true
-            print("✅ [TableRowView] Schema fetched successfully")
-        } catch {
-            print("❌ [TableRowView] Error fetching schema: \(error)")
-            // Could show an error alert here if needed
         }
     }
     

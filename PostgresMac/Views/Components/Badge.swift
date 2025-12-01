@@ -16,8 +16,8 @@ struct Badge: View {
             .font(.caption2)
             .fontWeight(.semibold)
             .foregroundColor(.white)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
+            .padding(.horizontal, 4)
+            .padding(.vertical, 1.5)
             .background(color)
             .cornerRadius(4)
     }

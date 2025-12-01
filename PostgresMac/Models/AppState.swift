@@ -25,7 +25,6 @@ class AppState {
     // Data caches (populated by DatabaseService)
     var databases: [DatabaseInfo] = []
     var tables: [TableInfo] = []
-    var columns: [ColumnInfo] = []
 
     // UI state
     var isShowingConnectionForm: Bool = false
@@ -42,8 +41,4 @@ class AppState {
     var queryError: String? = nil
     var showQueryResults: Bool = false
     var queryExecutionTime: TimeInterval? = nil
-    
-    // Schema view state
-    var showTableSchema: Bool = false
-    var schemaTable: TableInfo? = nil
 }

@@ -11,10 +11,10 @@ struct ColumnRowView: View {
     let column: ColumnInfo
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text(column.name)
-                    .font(.headline)
+                    .font(.subheadline)
                 
                 Spacer()
                 
@@ -35,17 +35,17 @@ struct ColumnRowView: View {
             
             LabeledContent("Type") {
                 Text(column.dataType)
-                    .font(.system(.body, design: .monospaced))
+                    .font(.system(.caption, design: .monospaced))
             }
             
             if let defaultValue = column.defaultValue {
                 LabeledContent("Default") {
                     Text(defaultValue)
-                        .font(.system(.body, design: .monospaced))
+                        .font(.system(.caption, design: .monospaced))
                 }
             }
         }
-        .padding()
+        .padding(8)
         .background(Color(NSColor.controlBackgroundColor))
         .cornerRadius(8)
     }

@@ -180,13 +180,6 @@ struct QueryResultsView: View {
             return columnNames
         }
         
-        // Fallback: Use columns from selected table if available
-        if !appState.columns.isEmpty {
-            let columnNames = appState.columns.map { $0.name }
-            print("📋 [QueryResultsView] Using columns from selected table: \(columnNames.joined(separator: ", "))")
-            return columnNames
-        }
-        
         // Fallback: Extract column names from the first row
         guard let firstRow = appState.queryResults.first else {
             print("⚠️  [QueryResultsView] No column names available")

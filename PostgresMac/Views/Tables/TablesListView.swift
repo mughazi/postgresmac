@@ -74,25 +74,6 @@ struct TablesListView: View {
                 .disabled(appState.isLoadingTables || appState.selectedDatabase == nil)
             }
         }
-        .sheet(isPresented: Binding(
-            get: { appState.showTableSchema },
-            set: { appState.showTableSchema = $0 }
-        )) {
-            if let schemaTable = appState.schemaTable {
-                NavigationStack {
-                    TableSchemaView()
-                        .navigationTitle("\(schemaTable.schema).\(schemaTable.name)")
-                        .toolbar {
-                            ToolbarItem(placement: .automatic) {
-                                Button("Done") {
-                                    appState.showTableSchema = false
-                                    appState.schemaTable = nil
-                                }
-                            }
-                        }
-                }
-            }
-        }
     }
 
     private func generateTableQuery(for table: TableInfo) -> String {
@@ -112,19 +93,8 @@ struct TablesListView: View {
         appState.showQueryResults = false // Hide results view during loading
         
         // Clear existing state to prevent rendering issues
-        appState.columns = []
         appState.queryResults = []
         appState.queryColumnNames = nil
-
-        // Fetch column metadata for the table first
-        do {
-            print("📋 [TablesListView] Fetching columns for table...")
-            appState.columns = try await appState.databaseService.fetchColumns(schema: table.schema, table: table.name)
-            print("✅ [TablesListView] Fetched \(appState.columns.count) columns")
-        } catch {
-            print("⚠️  [TablesListView] Failed to fetch columns: \(error)")
-            appState.columns = []
-        }
 
         // Generate SELECT query with pagination
         let query = generateTableQuery(for: table)
