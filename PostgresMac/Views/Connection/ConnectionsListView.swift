@@ -273,9 +273,9 @@ private struct ConnectionRowView: View {
                     Image(systemName: "ellipsis")
                         .foregroundColor(isButtonHovered ? .primary : .secondary)
                         .padding(.horizontal, 6)
-                        .padding(.vertical, 6)
+                        .padding(.vertical, 8)
                         .background(isButtonHovered ? Color.secondary.opacity(0.2) : Color.clear)
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                        .clipShape(RoundedRectangle(cornerRadius: 100))
                 }
                 .buttonStyle(.plain)
                 .onHover { hovering in

@@ -14,23 +14,39 @@ struct WelcomeView: View {
     
     var body: some View {
         VStack(spacing: Constants.Spacing.large) {
-            Text("PostgresMac")
-                .font(.system(size: 48, weight: .bold))
-                .padding(.bottom, Constants.Spacing.extraLarge)
+            Image("Logo")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 200, height: 200)
+
+            Text("Hello, and welcome!")
+                .font(.system(size: 14))
+                .foregroundStyle(.secondary)
             
-            VStack(spacing: Constants.Spacing.medium) {
+            VStack(spacing: Constants.Spacing.small) {
                 Button(action: connectToLocalhost) {
-                    Text("Connect to localhost")
-                        .frame(minWidth: 200)
+                    HStack {
+                        Text("Connect to localhost")
+                        Spacer()
+                        Image(systemName: "desktopcomputer")
+                    }
+                    .frame(minWidth: 160, maxWidth: 200)
+                    .padding(.vertical, 6)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.glassProminent)
                 .controlSize(.large)
                 
                 Button(action: showConnectionForm) {
-                    Text("Connect to Server")
-                        .frame(minWidth: 200)
+                    HStack {
+                        Text("Connect to Server")
+                        Spacer()
+                        Image(systemName: "server.rack")
+                    }
+                    .frame(minWidth: 160, maxWidth: 200)
+                    .padding(.vertical, 6)
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.glassProminent)
+                .tint(.secondary)
                 .controlSize(.large)
             }
         }
