@@ -310,15 +310,10 @@ class DatabaseService {
             throw ConnectionError.notConnected
         }
 
-        // Build query with properly escaped identifiers (using quote_ident would be better but requires a function call)
-        // For now, use simple escaping for schema and table names
-        let escapedSchema = schema.replacingOccurrences(of: "\"", with: "\"\"")
-        let escapedTable = table.replacingOccurrences(of: "\"", with: "\"\"")
-
-        // Note: We can't use PostgresNIO's parameter binding for table/schema names (identifiers)
+        // Note: We can't use PostgresNIO's parameter binding for table names (identifiers)
         // They must be part of the SQL string, but LIMIT/OFFSET can be bound
         let querySQL = """
-            SELECT * FROM "\(escapedSchema)"."\(escapedTable)"
+            SELECT * FROM \(table)
             LIMIT \(limit) OFFSET \(offset);
             """
 

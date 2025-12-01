@@ -78,9 +78,7 @@ struct TablesListView: View {
     }
 
     private func generateTableQuery(for table: TableInfo) -> String {
-        let escapedSchema = table.schema.replacingOccurrences(of: "\"", with: "\"\"")
-        let escapedTable = table.name.replacingOccurrences(of: "\"", with: "\"\"")
-        return "SELECT * FROM \"\(escapedSchema)\".\"\(escapedTable)\" LIMIT \(appState.rowsPerPage);"
+        return "SELECT * FROM \(table.name) LIMIT \(appState.rowsPerPage);"
     }
 
     @MainActor
