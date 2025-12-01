@@ -72,6 +72,7 @@ struct TablesListView: View {
                     Image(systemName: "arrow.clockwise")
                 }
                 .disabled(appState.isLoadingTables || appState.selectedDatabase == nil)
+                .keyboardShortcut(.init("r"), modifiers: [.command])
             }
         }
     }
@@ -172,10 +173,22 @@ struct TablesListView: View {
             print("📊 [TablesListView] Fetching tables from database: \(database.name)")
             appState.tables = try await appState.databaseService.fetchTables(database: database.name)
             print("✅ [TablesListView] Refreshed \(appState.tables.count) tables")
+            
+            // Update selectedTable reference if it still exists in the refreshed list
+            if let selectedTable = appState.selectedTable,
+               let refreshedTable = appState.tables.first(where: { $0.id == selectedTable.id }) {
+                appState.selectedTable = refreshedTable
+            }
         } catch {
             print("❌ [TablesListView] Error refreshing tables: \(error)")
             print("❌ [TablesListView] Error details: \(String(describing: error))")
             // Keep existing tables on error
+        }
+        
+        // Refresh query results if a table is selected
+        if let selectedTable = appState.selectedTable {
+            print("🔄 [TablesListView] Refreshing query results for table: \(selectedTable.schema).\(selectedTable.name)")
+            await populateAndExecuteQuery(for: selectedTable)
         }
     }
 }
